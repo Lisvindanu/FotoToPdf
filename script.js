@@ -155,9 +155,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 const pageCount = doc.internal.getNumberOfPages();
                 for (let i = 1; i <= pageCount; i++) {
                     doc.setPage(i);
-                    const pageInfo = doc.internal.pages[i-1];
+                    const pageSize = doc.internal.pageSize;
                     doc.setFontSize(10);
-                    doc.text(`${i} dari ${pageCount}`, pageInfo.width / 2, pageInfo.height - 5, { align: 'center' });
+                    doc.text(`${i} dari ${pageCount}`, pageSize.getWidth() / 2, pageSize.getHeight() - 5, { align: 'center' });
                 }
             }
 
@@ -365,5 +365,231 @@ document.addEventListener('DOMContentLoaded', () => {
         link.click();
         document.body.removeChild(link);
         URL.revokeObjectURL(link.href);
+    }
+
+    // --- FUNGSI ALAT 4: PDF KE PNG ---
+    const pngInput = document.getElementById('pngInput');
+    const pngDropZone = document.getElementById('pngDropZone');
+    const pngPreviewArea = document.getElementById('png-preview-area');
+    const convertToPngButton = document.getElementById('convertToPngButton');
+    const pngQualitySelect = document.getElementById('pngQuality');
+    const pngPagesSelect = document.getElementById('pngPages');
+    const pageRangeInput = document.getElementById('pageRange');
+    const pageRangeDiv = document.getElementById('page-range-input');
+    const pngOptionsDiv = document.getElementById('png-options');
+    let pdfForPngFile = null;
+    let pdfForPngDoc = null;
+
+    pngPagesSelect.addEventListener('change', () => {
+        pageRangeDiv.style.display = pngPagesSelect.value === 'range' ? 'block' : 'none';
+    });
+
+    pngDropZone.addEventListener('click', () => pngInput.click());
+    pngDropZone.addEventListener('dragover', (e) => { 
+        e.preventDefault(); 
+        e.currentTarget.classList.add('drag-over'); 
+    });
+    pngDropZone.addEventListener('dragleave', (e) => e.currentTarget.classList.remove('drag-over'));
+    pngDropZone.addEventListener('drop', (e) => {
+        e.preventDefault(); 
+        e.currentTarget.classList.remove('drag-over');
+        const file = Array.from(e.dataTransfer.files).find(f => f.type === 'application/pdf');
+        if(file) handlePngFile(file);
+    });
+    pngInput.addEventListener('change', (e) => { 
+        if(e.target.files.length) handlePngFile(e.target.files[0]) 
+    });
+    convertToPngButton.addEventListener('click', convertPdfToPng);
+
+    async function handlePngFile(file) {
+        pdfForPngFile = file;
+        pngDropZone.style.display = 'none';
+        pngOptionsDiv.style.display = 'flex';
+        pngPreviewArea.innerHTML = '<div style="text-align: center; padding: 20px;"><i>Memuat pratinjau PDF...</i></div>';
+        
+        const fileReader = new FileReader();
+        fileReader.readAsArrayBuffer(file);
+        fileReader.onload = async function() {
+            try {
+                pdfForPngDoc = await pdfjsLib.getDocument(this.result).promise;
+                await renderPngPreview();
+                convertToPngButton.style.display = 'block';
+            } catch (e) { 
+                console.error(e); 
+                alert('Gagal memuat PDF untuk konversi.'); 
+                resetPngView(); 
+            }
+        }
+    }
+
+    async function renderPngPreview() {
+        pngPreviewArea.innerHTML = '';
+        const previewContainer = document.createElement('div');
+        previewContainer.style.cssText = `
+            display: grid; 
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 15px; 
+            margin-top: 20px; 
+            max-height: 500px; 
+            overflow-y: auto;
+            background: var(--background-color); 
+            padding: 15px; 
+            border-radius: 12px;
+        `;
+        
+        for (let i = 1; i <= pdfForPngDoc.numPages; i++) {
+            const page = await pdfForPngDoc.getPage(i);
+            const viewport = page.getViewport({ scale: 0.8 });
+            const canvas = document.createElement('canvas');
+            const context = canvas.getContext('2d');
+            canvas.height = viewport.height;
+            canvas.width = viewport.width;
+            
+            const pageContainer = document.createElement('div');
+            pageContainer.style.cssText = `
+                position: relative; 
+                border: 1px solid var(--border-color); 
+                border-radius: 8px;
+                overflow: hidden; 
+                text-align: center;
+                box-shadow: var(--shadow);
+                transition: transform 0.2s ease;
+            `;
+            
+            // Add hover effect
+            pageContainer.addEventListener('mouseenter', () => {
+                pageContainer.style.transform = 'scale(1.02)';
+            });
+            pageContainer.addEventListener('mouseleave', () => {
+                pageContainer.style.transform = 'scale(1)';
+            });
+            
+            await page.render({ canvasContext: context, viewport: viewport }).promise;
+            
+            // Make canvas responsive
+            canvas.style.cssText = `
+                width: 100%;
+                height: auto;
+                display: block;
+            `;
+            
+            pageContainer.appendChild(canvas);
+            
+            const pageLabel = document.createElement('div');
+            pageLabel.textContent = `Hal. ${i}`;
+            pageLabel.style.cssText = `
+                padding: 8px; 
+                font-size: 14px; 
+                font-weight: 500;
+                background: var(--box-background);
+                border-top: 1px solid var(--border-color);
+                color: var(--text-color);
+            `;
+            pageContainer.appendChild(pageLabel);
+            previewContainer.appendChild(pageContainer);
+        }
+        
+        pngPreviewArea.appendChild(previewContainer);
+    }
+
+    async function convertPdfToPng() {
+        if (!pdfForPngDoc) return;
+        
+        convertToPngButton.textContent = 'Mengonversi...';
+        convertToPngButton.disabled = true;
+        
+        try {
+            const scale = parseFloat(pngQualitySelect.value);
+            let pagesToConvert = [];
+            
+            if (pngPagesSelect.value === 'all') {
+                pagesToConvert = Array.from({length: pdfForPngDoc.numPages}, (_, i) => i + 1);
+            } else {
+                // Parse page range
+                const rangeText = pageRangeInput.value.trim();
+                if (!rangeText) {
+                    alert('Masukkan rentang halaman yang valid.');
+                    return;
+                }
+                
+                pagesToConvert = parsePageRange(rangeText, pdfForPngDoc.numPages);
+                if (pagesToConvert.length === 0) {
+                    alert('Rentang halaman tidak valid.');
+                    return;
+                }
+            }
+            
+            // Convert each page
+            for (const pageNum of pagesToConvert) {
+                const page = await pdfForPngDoc.getPage(pageNum);
+                const viewport = page.getViewport({ scale: scale });
+                const canvas = document.createElement('canvas');
+                const context = canvas.getContext('2d');
+                canvas.height = viewport.height;
+                canvas.width = viewport.width;
+                
+                await page.render({ canvasContext: context, viewport: viewport }).promise;
+                
+                // Convert canvas to PNG blob
+                canvas.toBlob((blob) => {
+                    const fileName = pdfForPngFile ? 
+                        `${pdfForPngFile.name.replace('.pdf', '')}_halaman_${pageNum}.png` : 
+                        `dokumen_halaman_${pageNum}.png`;
+                    const link = document.createElement('a');
+                    link.href = URL.createObjectURL(blob);
+                    link.download = fileName;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    URL.revokeObjectURL(link.href);
+                }, 'image/png', 1.0);
+            }
+            
+        } catch (e) {
+            console.error(e);
+            alert('Gagal mengonversi PDF ke PNG: ' + e.message);
+        } finally {
+            resetPngView();
+        }
+    }
+
+    function parsePageRange(rangeText, maxPages) {
+        const pages = new Set();
+        const parts = rangeText.split(',');
+        
+        for (const part of parts) {
+            const trimmed = part.trim();
+            if (trimmed.includes('-')) {
+                const [start, end] = trimmed.split('-').map(s => parseInt(s.trim()));
+                if (isNaN(start) || isNaN(end) || start < 1 || end > maxPages || start > end) {
+                    continue;
+                }
+                for (let i = start; i <= end; i++) {
+                    pages.add(i);
+                }
+            } else {
+                const pageNum = parseInt(trimmed);
+                if (!isNaN(pageNum) && pageNum >= 1 && pageNum <= maxPages) {
+                    pages.add(pageNum);
+                }
+            }
+        }
+        
+        return Array.from(pages).sort((a, b) => a - b);
+    }
+
+    function resetPngView() {
+        convertToPngButton.textContent = 'Konversi ke PNG';
+        convertToPngButton.disabled = false;
+        convertToPngButton.style.display = 'none';
+        pdfForPngFile = null;
+        pdfForPngDoc = null;
+        pngInput.value = '';
+        pngDropZone.style.display = 'block';
+        pngOptionsDiv.style.display = 'none';
+        pngPreviewArea.innerHTML = '';
+        pageRangeDiv.style.display = 'none';
+        pngPagesSelect.value = 'all';
+        pageRangeInput.value = '';
     }
 });

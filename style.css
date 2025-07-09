@@ -58,7 +58,7 @@ body {
 .back-to-menu-btn i { margin-right: 8px; }
 
 /* Menu Utama */
-.tool-menu { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; }
+.tool-menu { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; }
 .tool-card {
     background: var(--box-background); border-radius: 16px; padding: 25px;
     text-align: center; cursor: pointer; transition: all 0.3s ease;
@@ -131,6 +131,17 @@ body.dark-mode .convert-button:disabled { background-color: #555; }
 #pdf-actions p { width: 100%; text-align: center; margin-bottom: 0; color: var(--text-light); }
 #pdf-actions .action-buttons { display: flex; gap: 15px; width: 100%; }
 #pdf-actions button { flex: 1; }
+
+/* PDF to PNG Preview Styles */
+#png-preview-area {
+    margin-top: 20px;
+}
+
+#png-preview-area canvas {
+    max-width: 100%;
+    height: auto;
+    border-radius: 4px;
+}
 
 /* Dark Mode Switcher */
 .theme-switcher { position: absolute; top: 20px; right: 20px; display: flex; align-items: center; gap: 10px; color: var(--text-light); }

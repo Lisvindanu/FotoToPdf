@@ -47,6 +47,11 @@
                     <h2>Pisah & Hapus Halaman</h2>
                     <p>Ekstrak atau hapus halaman dari file PDF.</p>
                 </div>
+                <div class="tool-card" data-view="pdf-to-png-view">
+                    <i class="fa-solid fa-file-export"></i>
+                    <h2>PDF ke PNG</h2>
+                    <p>Konversi halaman PDF menjadi gambar PNG.</p>
+                </div>
             </div>
         </div>
 
@@ -124,6 +129,45 @@
                     <button id="removeButton" class="convert-button">Hapus Halaman Terpilih</button>
                     <button id="splitButton" class="convert-button">Pisahkan Halaman Terpilih</button>
                 </div>
+            </div>
+        </div>
+
+        <div id="pdf-to-png-view" class="view">
+            <div class="converter-box">
+                <div class="header"><h1><i class="fa-solid fa-file-export"></i> PDF ke PNG</h1></div>
+                <div id="pngDropZone" class="drop-zone">
+                    <div class="drop-zone-prompt"><i class="fa-solid fa-cloud-arrow-up"></i><p>Seret File PDF atau Klik</p></div>
+                </div>
+                <input type="file" id="pngInput" accept=".pdf" hidden>
+                
+                <div class="options" id="png-options" style="display: none;">
+                    <div class="option-item">
+                        <label for="pngQuality">Kualitas Gambar</label>
+                        <select id="pngQuality">
+                            <option value="1">Standar (1x)</option>
+                            <option value="1.5" selected>Tinggi (1.5x)</option>
+                            <option value="2">Sangat Tinggi (2x)</option>
+                            <option value="3">Ultra (3x)</option>
+                        </select>
+                    </div>
+                    <div class="option-item">
+                        <label for="pngPages">Halaman yang Dikonversi</label>
+                        <select id="pngPages">
+                            <option value="all" selected>Semua Halaman</option>
+                            <option value="range">Rentang Halaman</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div id="page-range-input" style="display: none; margin-top: 15px;">
+                    <input type="text" id="pageRange" placeholder="Contoh: 1-3, 5, 7-9">
+                    <small style="color: var(--text-light); display: block; margin-top: 5px;">
+                        Format: nomor halaman dipisah koma, gunakan tanda "-" untuk rentang
+                    </small>
+                </div>
+
+                <div id="png-preview-area"></div>
+                <button id="convertToPngButton" class="convert-button" style="display: none;">Konversi ke PNG</button>
             </div>
         </div>
     </main>
