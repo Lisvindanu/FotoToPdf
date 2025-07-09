@@ -132,6 +132,17 @@ body.dark-mode .convert-button:disabled { background-color: #555; }
 #pdf-actions .action-buttons { display: flex; gap: 15px; width: 100%; }
 #pdf-actions button { flex: 1; }
 
+/* PDF to PNG Preview Styles */
+#png-preview-area {
+    margin-top: 20px;
+}
+
+#png-preview-area canvas {
+    max-width: 100%;
+    height: auto;
+    border-radius: 4px;
+}
+
 /* Dark Mode Switcher */
 .theme-switcher { position: absolute; top: 20px; right: 20px; display: flex; align-items: center; gap: 10px; color: var(--text-light); }
 .switch { position: relative; display: inline-block; width: 44px; height: 24px; }

@@ -427,10 +427,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const previewContainer = document.createElement('div');
         previewContainer.style.cssText = `
             display: grid; 
-            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-            gap: 10px; 
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 15px; 
             margin-top: 20px; 
-            max-height: 300px; 
+            max-height: 500px; 
             overflow-y: auto;
             background: var(--background-color); 
             padding: 15px; 
@@ -439,7 +439,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         for (let i = 1; i <= pdfForPngDoc.numPages; i++) {
             const page = await pdfForPngDoc.getPage(i);
-            const viewport = page.getViewport({ scale: 0.5 });
+            const viewport = page.getViewport({ scale: 0.8 });
             const canvas = document.createElement('canvas');
             const context = canvas.getContext('2d');
             canvas.height = viewport.height;
@@ -452,18 +452,38 @@ document.addEventListener('DOMContentLoaded', () => {
                 border-radius: 8px;
                 overflow: hidden; 
                 text-align: center;
+                box-shadow: var(--shadow);
+                transition: transform 0.2s ease;
             `;
             
+            // Add hover effect
+            pageContainer.addEventListener('mouseenter', () => {
+                pageContainer.style.transform = 'scale(1.02)';
+            });
+            pageContainer.addEventListener('mouseleave', () => {
+                pageContainer.style.transform = 'scale(1)';
+            });
+            
             await page.render({ canvasContext: context, viewport: viewport }).promise;
+            
+            // Make canvas responsive
+            canvas.style.cssText = `
+                width: 100%;
+                height: auto;
+                display: block;
+            `;
+            
             pageContainer.appendChild(canvas);
             
             const pageLabel = document.createElement('div');
             pageLabel.textContent = `Hal. ${i}`;
             pageLabel.style.cssText = `
-                padding: 5px; 
-                font-size: 12px; 
+                padding: 8px; 
+                font-size: 14px; 
+                font-weight: 500;
                 background: var(--box-background);
                 border-top: 1px solid var(--border-color);
+                color: var(--text-color);
             `;
             pageContainer.appendChild(pageLabel);
             previewContainer.appendChild(pageContainer);
