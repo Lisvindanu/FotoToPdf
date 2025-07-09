@@ -58,13 +58,40 @@
                 <div id="dropZone" class="drop-zone">
                     <div class="drop-zone-prompt"><i class="fa-solid fa-cloud-arrow-up"></i><p>Seret Gambar atau Klik</p></div>
                 </div>
-                <input type="file" id="uploadInput" accept="image/jpeg, image/png" multiple hidden>
+                <input type="file" id="uploadInput" accept="image/jpeg, image/png, image/webp" multiple hidden>
                 <div id="fileList" class="file-list"></div>
                 <input type="text" id="documentTitle" placeholder="Judul Dokumen (Opsional)">
+                
                 <div class="options">
-                    <div class="option-item"><label for="pageSize">Ukuran</label><select id="pageSize"><option value="a4">A4</option><option value="original">Sesuai Gambar</option></select></div>
-                    <div class="option-item"><label>Kualitas (<span id="qualityValue">90</span>%)</label><input type="range" id="imageQuality" min="10" max="100" value="90"></div>
+                    <div class="option-item">
+                        <label for="pageSize">Ukuran Kertas</label>
+                        <select id="pageSize">
+                            <option value="a4" selected>A4</option>
+                            <option value="letter">Letter</option>
+                            <option value="legal">Legal</option>
+                            <option value="original">Sesuai Gambar</option>
+                        </select>
+                    </div>
+                    <div class="option-item">
+                        <label for="imageLayout">Tata Letak</label>
+                        <select id="imageLayout">
+                            <option value="fit" selected>1 Gmbr/Halaman (Paskan)</option>
+                            <option value="fill">1 Gmbr/Halaman (Penuhi Lebar)</option>
+                            <option value="2-up">2 Gmbr/Halaman</option>
+                        </select>
+                    </div>
                 </div>
+                <div class="options">
+                     <div class="option-item">
+                        <label for="imageResolution">Resolusi/Kualitas</label>
+                        <select id="imageResolution">
+                            <option value="standard" selected>Standar (Web/Layar)</option>
+                            <option value="high">Tinggi (Cetak)</option>
+                            <option value="best">Sangat Tinggi (Kualitas Asli)</option>
+                        </select>
+                    </div>
+                </div>
+
                 <label class="checkbox-container"><input type="checkbox" id="addPageNumbers" checked> Tambah Nomor Halaman</label>
                 <button id="convertButton" class="convert-button" disabled>Konversi ke PDF</button>
             </div>

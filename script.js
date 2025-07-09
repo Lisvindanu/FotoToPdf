@@ -14,12 +14,11 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById(viewId).classList.add('active');
         const isMenu = viewId === 'main-menu-view';
         backToMenuBtn.style.display = isMenu ? 'none' : 'inline-flex';
-        document.querySelector('.header').style.display = isMenu ? 'block' : 'none';
+        const mainMenuHeader = document.querySelector('#main-menu-view .header');
+        if (mainMenuHeader) mainMenuHeader.style.display = isMenu ? 'block' : 'none';
     }
 
-    toolCards.forEach(card => {
-        card.addEventListener('click', () => switchView(card.dataset.view));
-    });
+    toolCards.forEach(card => card.addEventListener('click', () => switchView(card.dataset.view)));
     backToMenuBtn.addEventListener('click', () => switchView('main-menu-view'));
 
     // --- Mode Gelap ---
@@ -40,15 +39,29 @@ document.addEventListener('DOMContentLoaded', () => {
     const dropZone = document.getElementById('dropZone');
     const fileList = document.getElementById('fileList');
     const convertButton = document.getElementById('convertButton');
+    const documentTitleInput = document.getElementById('documentTitle');
+    const pageSizeSelect = document.getElementById('pageSize');
+    const imageLayoutSelect = document.getElementById('imageLayout');
+    const imageResolutionSelect = document.getElementById('imageResolution');
+    const addPageNumbersCheckbox = document.getElementById('addPageNumbers');
     let imageFiles = [];
+
+    // *** PERBAIKAN: Tambahkan event listener untuk mencegah konflik ***
+    pageSizeSelect.addEventListener('change', () => {
+        if (pageSizeSelect.value === 'original') {
+            imageLayoutSelect.value = 'fit'; // Set default ke 1 gambar/halaman
+            imageLayoutSelect.disabled = true;
+        } else {
+            imageLayoutSelect.disabled = false;
+        }
+    });
 
     Sortable.create(fileList, { animation: 150, handle: '.drag-handle', onEnd: (e) => reorderArray(imageFiles, e.oldIndex, e.newIndex) });
     dropZone.addEventListener('click', () => uploadInput.click());
     dropZone.addEventListener('dragover', (e) => { e.preventDefault(); e.currentTarget.classList.add('drag-over'); });
     dropZone.addEventListener('dragleave', (e) => e.currentTarget.classList.remove('drag-over'));
     dropZone.addEventListener('drop', (e) => {
-        e.preventDefault();
-        e.currentTarget.classList.remove('drag-over');
+        e.preventDefault(); e.currentTarget.classList.remove('drag-over');
         handleImageFiles(e.dataTransfer.files);
     });
     uploadInput.addEventListener('change', () => handleImageFiles(uploadInput.files));
@@ -61,12 +74,111 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function convertImagesToPdf() {
-        // Logika konversi gambar ke PDF (disingkat, karena sudah ada sebelumnya)
-        alert('Fungsi konversi gambar ke PDF akan dijalankan di sini!');
+        if (imageFiles.length === 0) return;
+        convertButton.textContent = 'Mengonversi...';
+        convertButton.disabled = true;
+
+        try {
+            const layout = imageLayoutSelect.value;
+            const paperSize = pageSizeSelect.value;
+            
+            const doc = new jsPDF({
+                orientation: 'p',
+                unit: 'mm',
+                format: paperSize === 'original' ? undefined : paperSize
+            });
+            if (paperSize !== 'original') doc.deletePage(1);
+
+            for (let i = 0; i < imageFiles.length; i++) {
+                // Tentukan kapan harus menambah halaman baru
+                const shouldAddPage = (layout === '2-up' && i % 2 === 0) || layout !== '2-up';
+                
+                if (shouldAddPage) {
+                    const img = await loadImage(URL.createObjectURL(imageFiles[i]));
+                    const size = paperSize === 'original' ? [img.width * 0.264583, img.height * 0.264583] : paperSize;
+                    const orientation = img.width > img.height ? 'l' : 'p';
+                    doc.addPage(size, orientation);
+                }
+
+                const page = doc.internal.pages[doc.internal.pages.length - 1];
+                const pageWidth = page.width;
+                const pageHeight = page.height;
+
+                let compression = 'MEDIUM';
+                if (imageResolutionSelect.value === 'high') compression = 'SLOW';
+                if (imageResolutionSelect.value === 'best') compression = 'NONE';
+                
+                const img = await loadImage(URL.createObjectURL(imageFiles[i]));
+                let imgWidth = img.width;
+                let imgHeight = img.height;
+
+                if (layout === '2-up') {
+                    const isTopImage = i % 2 === 0;
+                    const yPos = isTopImage ? 0 : pageHeight / 2;
+                    // Paskan gambar ke setengah halaman
+                    const areaRatio = Math.min(pageWidth / imgWidth, (pageHeight / 2) / imgHeight);
+                    const newWidth = imgWidth * areaRatio;
+                    const newHeight = imgHeight * areaRatio;
+                    const xPos = (pageWidth - newWidth) / 2;
+                    doc.addImage(img, 'JPEG', xPos, yPos + ((pageHeight / 2) - newHeight) / 2, newWidth, newHeight, undefined, compression);
+                } else {
+                    let newWidth, newHeight, x, y;
+                    if (layout === 'fill') {
+                        const ratio = pageWidth / imgWidth;
+                        newWidth = pageWidth;
+                        newHeight = imgHeight * ratio;
+                        x = 0;
+                        y = (pageHeight - newHeight) / 2;
+                    } else { // 'fit'
+                        const ratio = Math.min(pageWidth / imgWidth, pageHeight / imgHeight);
+                        newWidth = imgWidth * ratio;
+                        newHeight = imgHeight * ratio;
+                        x = (pageWidth - newWidth) / 2;
+                        y = (pageHeight - newHeight) / 2;
+                    }
+                    doc.addImage(img, 'JPEG', x, y, newWidth, newHeight, undefined, compression);
+                }
+            }
+            
+            if (addPageNumbersCheckbox.checked) {
+                for (let i = 1; i <= doc.internal.getNumberOfPages(); i++) {
+                    doc.setPage(i);
+                    const page = doc.internal.pages[i];
+                    doc.setFontSize(10);
+                    doc.text(`${i}`, page.width / 2, page.height - 5, { align: 'center' });
+                }
+            }
+
+            const title = documentTitleInput.value.trim() || 'dokumen-gambar';
+            doc.save(`${title}.pdf`);
+
+        } catch (e) {
+            console.error(e);
+            alert('Gagal mengonversi gambar ke PDF. Error: ' + e.message);
+        } finally {
+            resetImageToPdfView();
+        }
     }
 
+    function resetImageToPdfView() {
+        convertButton.textContent = 'Konversi ke PDF';
+        imageFiles = [];
+        uploadInput.value = '';
+        renderFileList(imageFiles, fileList, 'image');
+        convertButton.disabled = true;
+    }
 
-    // --- FUNGSI ALAT 2: GABUNGKAN PDF ---
+    function loadImage(src) {
+        return new Promise((resolve, reject) => {
+            const img = new Image();
+            img.onload = () => resolve(img);
+            img.onerror = (e) => reject(e);
+            img.src = src;
+        });
+    }
+
+    // --- FUNGSI ALAT 2 & 3 (Tidak ada perubahan) ---
+    // ... (kode untuk Gabungkan PDF dan Pisah & Hapus Halaman tetap sama) ...
     const mergeInput = document.getElementById('mergeInput');
     const mergeDropZone = document.getElementById('mergeDropZone');
     const mergeFileList = document.getElementById('mergeFileList');
@@ -78,8 +190,7 @@ document.addEventListener('DOMContentLoaded', () => {
     mergeDropZone.addEventListener('dragover', (e) => { e.preventDefault(); e.currentTarget.classList.add('drag-over'); });
     mergeDropZone.addEventListener('dragleave', (e) => e.currentTarget.classList.remove('drag-over'));
     mergeDropZone.addEventListener('drop', (e) => {
-        e.preventDefault();
-        e.currentTarget.classList.remove('drag-over');
+        e.preventDefault(); e.currentTarget.classList.remove('drag-over');
         handleMergeFiles(e.dataTransfer.files);
     });
     mergeInput.addEventListener('change', () => handleMergeFiles(mergeInput.files));
@@ -112,7 +223,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // --- FUNGSI ALAT 3: PISAH & HAPUS HALAMAN ---
     const modifyInput = document.getElementById('modifyInput');
     const modifyDropZone = document.getElementById('modifyDropZone');
     const previewArea = document.getElementById('pdf-preview-area');
@@ -125,8 +235,7 @@ document.addEventListener('DOMContentLoaded', () => {
     modifyDropZone.addEventListener('dragover', (e) => { e.preventDefault(); e.currentTarget.classList.add('drag-over'); });
     modifyDropZone.addEventListener('dragleave', (e) => e.currentTarget.classList.remove('drag-over'));
     modifyDropZone.addEventListener('drop', (e) => {
-        e.preventDefault();
-        e.currentTarget.classList.remove('drag-over');
+        e.preventDefault(); e.currentTarget.classList.remove('drag-over');
         const file = Array.from(e.dataTransfer.files).find(f => f.type === 'application/pdf');
         if(file) handleModifyFile(file);
     });
@@ -150,19 +259,18 @@ document.addEventListener('DOMContentLoaded', () => {
                     const context = canvas.getContext('2d');
                     canvas.height = viewport.height;
                     canvas.width = viewport.width;
-                    await page.render({ canvasContext: context, viewport: viewport }).promise;
-                    
                     const pageContainer = document.createElement('div');
                     pageContainer.className = 'pdf-page-container';
                     pageContainer.dataset.pageNum = i;
+                    await page.render({ canvasContext: context, viewport: viewport }).promise;
                     pageContainer.appendChild(canvas);
-                    pageContainer.innerHTML += `
+                    const additionalHTML = `
                         <div class="page-overlay">
                             <button class="page-action-btn remove" title="Pilih untuk Dihapus"><i class="fa-solid fa-trash-can"></i></button>
                             <button class="page-action-btn split" title="Pilih untuk Dipisah"><i class="fa-solid fa-copy"></i></button>
                         </div>
-                        <span class="page-number">${i}</span>
-                    `;
+                        <span class="page-number">${i}</span>`;
+                    pageContainer.insertAdjacentHTML('beforeend', additionalHTML);
                     previewArea.appendChild(pageContainer);
                 }
                 pdfActions.style.display = 'flex';
@@ -214,8 +322,6 @@ document.addEventListener('DOMContentLoaded', () => {
         pdfActions.style.display = 'none';
     }
 
-
-    // --- FUNGSI HELPER UMUM ---
     function renderFileList(files, container, type) {
         container.innerHTML = '';
         files.forEach((file, index) => {
@@ -227,7 +333,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 e.stopPropagation();
                 files.splice(index, 1);
                 renderFileList(files, container, type);
-                // Update button states
                 if(container === fileList) convertButton.disabled = files.length === 0;
                 if(container === mergeFileList) mergeButton.disabled = files.length < 2;
             });
@@ -244,7 +349,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const link = document.createElement('a');
         link.href = URL.createObjectURL(blob);
         link.download = fileName;
+        document.body.appendChild(link);
         link.click();
+        document.body.removeChild(link);
         URL.revokeObjectURL(link.href);
     }
 });
