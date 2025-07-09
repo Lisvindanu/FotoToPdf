@@ -155,9 +155,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 const pageCount = doc.internal.getNumberOfPages();
                 for (let i = 1; i <= pageCount; i++) {
                     doc.setPage(i);
-                    const pageInfo = doc.internal.pages[i-1];
+                    const pageSize = doc.internal.pageSize;
                     doc.setFontSize(10);
-                    doc.text(`${i} dari ${pageCount}`, pageInfo.width / 2, pageInfo.height - 5, { align: 'center' });
+                    doc.text(`${i} dari ${pageCount}`, pageSize.getWidth() / 2, pageSize.getHeight() - 5, { align: 'center' });
                 }
             }
 
