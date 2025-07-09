@@ -512,7 +512,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 // Convert canvas to PNG blob
                 canvas.toBlob((blob) => {
-                    const fileName = `${pdfForPngFile.name.replace('.pdf', '')}_halaman_${pageNum}.png`;
+                    const fileName = pdfForPngFile ? 
+                        `${pdfForPngFile.name.replace('.pdf', '')}_halaman_${pageNum}.png` : 
+                        `dokumen_halaman_${pageNum}.png`;
                     const link = document.createElement('a');
                     link.href = URL.createObjectURL(blob);
                     link.download = fileName;
