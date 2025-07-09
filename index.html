@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title> Ubah Gambar ke PDF</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
+</head>
+<body>
+
+    <main class="container">
+        <div class="theme-switcher">
+            <i class="fa-solid fa-sun"></i>
+            <label class="switch">
+                <input type="checkbox" id="dark-mode-toggle">
+                <span class="slider round"></span>
+            </label>
+            <i class="fa-solid fa-moon"></i>
+        </div>
+
+        <div class="converter-box">
+            <div class="header">
+                <i class="fa-solid fa-file-pdf"></i>
+                <h1>Image to PDF Converter</h1>
+                <p>Seret, lepas, dan atur urutan gambar Anda.</p>
+            </div>
+
+            <div id="dropZone" class="drop-zone">
+                <div class="drop-zone-prompt">
+                    <i class="fa-solid fa-cloud-arrow-up"></i>
+                    <p>Seret & Lepas File di Sini</p>
+                    <span class="or-separator">atau</span>
+                    <label for="uploadInput" class="browse-button">Pilih File</label>
+                </div>
+                <input type="file" id="uploadInput" accept="image/jpeg, image/png" multiple hidden>
+            </div>
+            
+            <div class="document-options">
+                <input type="text" id="documentTitle" placeholder="Ketik judul dokumen di sini...">
+                <label class="checkbox-container">
+                    <input type="checkbox" id="addPageNumbers" checked>
+                    Tambahkan Nomor Halaman
+                </label>
+            </div>
+
+            <div class="options">
+                <div class="option-item">
+                    <label for="pageSize">Ukuran Halaman</label>
+                    <select id="pageSize">
+                        <option value="original">Sesuai Gambar</option>
+                        <option value="a4" selected>A4</option>
+                        <option value="a5">A5</option>
+                        <option value="letter">Letter</option>
+                    </select>
+                </div>
+                <div class="option-item">
+                    <label>Kualitas (<span id="qualityValue">90</span>%)</label>
+                    <input type="range" id="imageQuality" min="10" max="100" value="90">
+                    <div class="presets">
+                        <button class="preset-btn" data-quality="50">Rendah</button>
+                        <button class="preset-btn" data-quality="80">Sedang</button>
+                        <button class="preset-btn" data-quality="100">Tinggi</button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="fileList" class="file-list"></div>
+
+            <div class="actions">
+                <p id="statusText"></p>
+                <button id="convertButton" class="convert-button" disabled>
+                    <i class="fa-solid fa-gear"></i> Konversi ke PDF
+                </button>
+            </div>
+        </div>
+        <footer class="footer">
+            Dibuat di Bandung
+        </footer>
+    </main>
+
+    <script src="script.js"></script>
+</body>
+</html>
