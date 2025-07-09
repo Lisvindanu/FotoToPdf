@@ -58,7 +58,7 @@ body {
 .back-to-menu-btn i { margin-right: 8px; }
 
 /* Menu Utama */
-.tool-menu { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; }
+.tool-menu { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; }
 .tool-card {
     background: var(--box-background); border-radius: 16px; padding: 25px;
     text-align: center; cursor: pointer; transition: all 0.3s ease;
