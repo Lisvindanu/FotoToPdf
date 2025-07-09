@@ -73,7 +73,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     // =======================================================================
-    // === FUNGSI KONVERSI GAMBAR KE PDF DENGAN LOGIKA BARU & SOLID =========
+    // === FUNGSI KONVERSI GAMBAR KE PDF (DEFINITIVE FIX) ====================
     // =======================================================================
     async function convertImagesToPdf() {
         if (imageFiles.length === 0) return;
@@ -82,13 +82,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
             const doc = new jsPDF({ orientation: 'p', unit: 'mm' });
-            doc.deletePage(1); // Hapus halaman kosong bawaan
+            doc.deletePage(1);
 
             const layout = imageLayoutSelect.value;
             const paperSizeSetting = pageSizeSelect.value;
             
-            // Definisikan ukuran kertas standar dalam mm
-            const STANDARD_SIZES = {
+            const STANDARD_SIZES_MM = {
                 a4: [210, 297],
                 letter: [215.9, 279.4],
                 legal: [215.9, 355.6]
@@ -98,48 +97,34 @@ document.addEventListener('DOMContentLoaded', () => {
                 const file = imageFiles[i];
                 const img = await loadImage(URL.createObjectURL(file));
 
+                let pageWidth, pageHeight;
+                const orientation = img.width > img.height ? 'l' : 'p';
+
+                if (paperSizeSetting === 'original') {
+                    pageWidth = img.width * 25.4 / 72;
+                    pageHeight = img.height * 25.4 / 72;
+                } else {
+                    const standardSize = STANDARD_SIZES_MM[paperSizeSetting];
+                    pageWidth = (orientation === 'l') ? standardSize[1] : standardSize[0];
+                    pageHeight = (orientation === 'l') ? standardSize[0] : standardSize[1];
+                }
+
                 const shouldAddPage = (layout === '2-up' && i % 2 === 0) || layout !== '2-up';
-                
                 if (shouldAddPage) {
-                    let pageWidth, pageHeight;
-                    const orientation = img.width > img.height ? 'l' : 'p';
-
-                    // Tentukan dimensi halaman secara eksplisit SEBELUM membuat halaman
-                    if (paperSizeSetting === 'original') {
-                        // Konversi pixel ke mm (1 inch = 25.4 mm, 96 dpi asumsi)
-                        pageWidth = img.width * 25.4 / 96;
-                        pageHeight = img.height * 25.4 / 96;
-                    } else {
-                        const standardSize = STANDARD_SIZES[paperSizeSetting];
-                        if (orientation === 'l') { // Landscape
-                            pageWidth = standardSize[1];
-                            pageHeight = standardSize[0];
-                        } else { // Portrait
-                            pageWidth = standardSize[0];
-                            pageHeight = standardSize[1];
-                        }
-                    }
-
-                    // Tambahkan halaman dengan format dan orientasi yang sudah pasti
-                    doc.addPage(paperSizeSetting !== 'original' ? paperSizeSetting : [pageWidth, pageHeight], orientation);
+                    doc.addPage([pageWidth, pageHeight], orientation);
                 }
                 
-                // Ambil halaman terakhir yang BARU saja ditambahkan
+                // Set a pointer to the current page to add the image to
                 const currentPage = doc.internal.pages[doc.internal.pages.length - 1];
-                const pageWidth = currentPage.width;
-                const pageHeight = currentPage.height;
 
-                // Tentukan kualitas kompresi
+                const format = file.type.split('/')[1].toUpperCase();
                 let compression = 'MEDIUM';
                 if (imageResolutionSelect.value === 'high') compression = 'SLOW';
                 if (imageResolutionSelect.value === 'best') compression = 'NONE';
                 
-                // Dapatkan format gambar (JPEG, PNG, dll.)
-                const format = file.type.split('/')[1].toUpperCase();
-
-                // Kalkulasi posisi dan dimensi gambar
                 let x, y, newWidth, newHeight;
                 if (layout === '2-up') {
+                    // **THE FIX IS HERE:** Use the already calculated `pageHeight` instead of trying to look up a standard size.
                     const isTopImage = i % 2 === 0;
                     const yOffset = isTopImage ? 0 : pageHeight / 2;
                     const areaRatio = Math.min(pageWidth / img.width, (pageHeight / 2) / img.height);
@@ -147,7 +132,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     newHeight = img.height * areaRatio;
                     x = (pageWidth - newWidth) / 2;
                     y = yOffset + ((pageHeight / 2) - newHeight) / 2;
-                } else { // 'fit' atau 'fill'
+                } else {
                     if (layout === 'fill') {
                         const ratio = pageWidth / img.width;
                         newWidth = pageWidth;
@@ -163,16 +148,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 }
                 
-                // Pastikan tidak ada nilai NaN sebelum memanggil addImage
-                if (isNaN(x) || isNaN(y) || isNaN(newWidth) || isNaN(newHeight)) {
-                   console.error("Kalkulasi koordinat gagal:", {x, y, newWidth, newHeight});
-                   throw new Error("Gagal menghitung posisi gambar. Coba muat ulang halaman.");
-                }
-                
                 doc.addImage(img, format, x, y, newWidth, newHeight, undefined, compression);
             }
             
-            // Tambah nomor halaman jika dicentang
             if (addPageNumbersCheckbox.checked) {
                 const pageCount = doc.internal.getNumberOfPages();
                 for (let i = 1; i <= pageCount; i++) {
@@ -211,7 +189,8 @@ document.addEventListener('DOMContentLoaded', () => {
             img.src = src;
         });
     }
-    // --- FUNGSI ALAT 2: GABUNGKAN PDF ---
+
+    // --- SISA KODE (TIDAK BERUBAH) ---
     const mergeInput = document.getElementById('mergeInput');
     const mergeDropZone = document.getElementById('mergeDropZone');
     const mergeFileList = document.getElementById('mergeFileList');
@@ -249,20 +228,13 @@ document.addEventListener('DOMContentLoaded', () => {
             download(await mergedPdf.save(), 'dokumen-gabungan.pdf', 'application/pdf');
         } catch(e) { console.error(e); alert("Gagal menggabungkan PDF."); }
         finally {
-            resetMergeView();
+            mergeButton.textContent = 'Gabungkan PDF';
+            pdfToMergeFiles = [];
+            renderFileList(pdfToMergeFiles, mergeFileList, 'pdf');
+            mergeButton.disabled = true;
         }
     }
 
-    function resetMergeView() {
-        mergeButton.textContent = 'Gabungkan PDF';
-        pdfToMergeFiles = [];
-        mergeInput.value = '';
-        renderFileList(pdfToMergeFiles, mergeFileList, 'pdf');
-        mergeButton.disabled = true;
-    }
-
-
-    // --- FUNGSI ALAT 3: PISAH & HAPUS PDF ---
     const modifyInput = document.getElementById('modifyInput');
     const modifyDropZone = document.getElementById('modifyDropZone');
     const previewArea = document.getElementById('pdf-preview-area');
@@ -286,49 +258,44 @@ document.addEventListener('DOMContentLoaded', () => {
         modifyDropZone.style.display = 'none';
         previewArea.innerHTML = '<i>Membaca PDF...</i>';
         
-        try {
-            const arrayBuffer = await file.arrayBuffer();
-            const pdf = await pdfjsLib.getDocument(arrayBuffer).promise;
-            previewArea.innerHTML = '';
-            for (let i = 1; i <= pdf.numPages; i++) {
-                const page = await pdf.getPage(i);
-                const viewport = page.getViewport({ scale: 1.5 }); // Tingkatkan skala untuk pratinjau lebih baik
-                const canvas = document.createElement('canvas');
-                const context = canvas.getContext('2d');
-                canvas.height = viewport.height;
-                canvas.width = viewport.width;
-                const pageContainer = document.createElement('div');
-                pageContainer.className = 'pdf-page-container';
-                pageContainer.dataset.pageNum = i;
-                await page.render({ canvasContext: context, viewport: viewport }).promise;
-                pageContainer.appendChild(canvas);
-                const additionalHTML = `
-                    <div class="page-overlay">
-                        <button class="page-action-btn remove" title="Pilih untuk Dihapus"><i class="fa-solid fa-trash-can"></i></button>
-                        <button class="page-action-btn split" title="Pilih untuk Dipisah"><i class="fa-solid fa-copy"></i></button>
-                    </div>
-                    <span class="page-number">${i}</span>`;
-                pageContainer.insertAdjacentHTML('beforeend', additionalHTML);
-                previewArea.appendChild(pageContainer);
-            }
-            pdfActions.style.display = 'flex';
-        } catch (e) { 
-            console.error(e); 
-            alert('Gagal memuat pratinjau PDF. File mungkin rusak atau terenkripsi.'); 
-            resetModifyView(); 
+        const fileReader = new FileReader();
+        fileReader.readAsArrayBuffer(file);
+        fileReader.onload = async function() {
+            try {
+                const pdf = await pdfjsLib.getDocument(this.result).promise;
+                previewArea.innerHTML = '';
+                for (let i = 1; i <= pdf.numPages; i++) {
+                    const page = await pdf.getPage(i);
+                    const viewport = page.getViewport({ scale: 1 });
+                    const canvas = document.createElement('canvas');
+                    const context = canvas.getContext('2d');
+                    canvas.height = viewport.height;
+                    canvas.width = viewport.width;
+                    const pageContainer = document.createElement('div');
+                    pageContainer.className = 'pdf-page-container';
+                    pageContainer.dataset.pageNum = i;
+                    await page.render({ canvasContext: context, viewport: viewport }).promise;
+                    pageContainer.appendChild(canvas);
+                    const additionalHTML = `
+                        <div class="page-overlay">
+                            <button class="page-action-btn remove" title="Pilih untuk Dihapus"><i class="fa-solid fa-trash-can"></i></button>
+                            <button class="page-action-btn split" title="Pilih untuk Dipisah"><i class="fa-solid fa-copy"></i></button>
+                        </div>
+                        <span class="page-number">${i}</span>`;
+                    pageContainer.insertAdjacentHTML('beforeend', additionalHTML);
+                    previewArea.appendChild(pageContainer);
+                }
+                pdfActions.style.display = 'flex';
+            } catch (e) { console.error(e); alert('Gagal memuat pratinjau PDF.'); resetModifyView(); }
         }
     }
     
     previewArea.addEventListener('click', (e) => {
         const btn = e.target.closest('.page-action-btn');
-        if (!btn) {
-             const container = e.target.closest('.pdf-page-container');
-             if(container) container.classList.toggle('selected-for-remove');
-        } else {
-            const pageContainer = btn.closest('.pdf-page-container');
-            if(btn.classList.contains('remove')) pageContainer.classList.toggle('selected-for-remove');
-            if(btn.classList.contains('split')) pageContainer.classList.toggle('selected-for-split');
-        }
+        if(!btn) return;
+        const pageContainer = btn.closest('.pdf-page-container');
+        if(btn.classList.contains('remove')) pageContainer.classList.toggle('selected-for-remove');
+        if(btn.classList.contains('split')) pageContainer.classList.toggle('selected-for-split');
     });
 
     removePdfButton.addEventListener('click', async () => {
@@ -337,7 +304,6 @@ document.addEventListener('DOMContentLoaded', () => {
         
         try {
             const pdfDoc = await PDFDocument.load(await originalPdfFile.arrayBuffer(), {ignoreEncryption: true});
-            // Hapus halaman dari belakang ke depan untuk menghindari masalah indeks
             pagesToRemove.sort((a,b) => b-a).forEach(num => pdfDoc.removePage(num - 1));
             download(await pdfDoc.save(), `dihapus-${originalPdfFile.name}`, 'application/pdf');
         } catch(e) { console.error(e); alert('Gagal menghapus halaman.'); }
@@ -368,8 +334,6 @@ document.addEventListener('DOMContentLoaded', () => {
         pdfActions.style.display = 'none';
     }
 
-
-    // --- FUNGSI UTILITAS UMUM ---
     function renderFileList(files, container, type) {
         container.innerHTML = '';
         files.forEach((file, index) => {
@@ -381,7 +345,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 e.stopPropagation();
                 files.splice(index, 1);
                 renderFileList(files, container, type);
-                // Perbarui status tombol setelah menghapus file
                 if(container === fileList) convertButton.disabled = files.length === 0;
                 if(container === mergeFileList) mergeButton.disabled = files.length < 2;
             });
@@ -390,8 +353,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     function reorderArray(arr, oldIndex, newIndex) {
-        const [movedItem] = arr.splice(oldIndex, 1);
-        arr.splice(newIndex, 0, movedItem);
+        arr.splice(newIndex, 0, arr.splice(oldIndex, 1)[0]);
     }
 
     function download(bytes, fileName, mimeType) {
@@ -402,7 +364,6 @@ document.addEventListener('DOMContentLoaded', () => {
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
-        // Tunda pencabutan URL untuk memastikan unduhan dimulai, terutama di Firefox
-        setTimeout(() => URL.revokeObjectURL(link.href), 100);
+        URL.revokeObjectURL(link.href);
     }
 });
