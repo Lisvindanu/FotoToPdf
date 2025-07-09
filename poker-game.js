@@ -344,20 +344,17 @@ class PokerGame {
 
 // Initialize game when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
-    // Wait for the poker view to be active before initializing
-    const observer = new MutationObserver(() => {
-        const pokerView = document.getElementById('poker-game-view');
-        if (pokerView && pokerView.classList.contains('active')) {
-            if (!window.pokerGame) {
-                window.pokerGame = new PokerGame();
+    // Initialize poker game when poker view becomes active
+    const toolCards = document.querySelectorAll('.tool-card');
+    toolCards.forEach(card => {
+        card.addEventListener('click', () => {
+            if (card.dataset.view === 'poker-game-view') {
+                setTimeout(() => {
+                    if (!window.pokerGame) {
+                        window.pokerGame = new PokerGame();
+                    }
+                }, 100);
             }
-        }
-    });
-    
-    observer.observe(document.body, { 
-        childList: true, 
-        subtree: true, 
-        attributes: true, 
-        attributeFilter: ['class'] 
+        });
     });
 });
